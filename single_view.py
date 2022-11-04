@@ -13,7 +13,7 @@ from scipy.interpolate import interp1d
 import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image
-import cv2
+import cv2, os
 
 from ImageViewer import ImageViewer    #This is a self-defined Class file. See ImageViewer.py
 
@@ -35,48 +35,19 @@ class TabletSampleWindow(QWidget):
         self.resize(width, height)
         self.setWindowTitle("Sample Tablet Event Handling")
 
-        self.vid_num = 25;
-        self.Video1 = f'/mnt/soma_cifs/Iyer/Filming/16092022a/Camera0/{self.vid_num}.mp4';
-        self.Video2 = f'/mnt/soma_cifs/Iyer/Filming/16092022a/Camera1/{self.vid_num}.mp4';
-        self.Video3 = f'/mnt/soma_cifs/Iyer/Filming/16092022a/Camera2/{self.vid_num}.mp4';
-        self.initialize_vidcap()
-        self.offsets = utils.get_deltas('/mnt/soma_cifs/Iyer/Filming/16092022a/', self.vid_num)
-
-
         self.image_number = 3200
         self.Viewer1 = ImageViewer(f'/mnt/soma_cifs/Iyer/RequestingHelpOCT2022/02112022a_43/Camera0/img{str(self.image_number).zfill(5)}.png',
-                                   [50, 50], 'Camera1')
-        self.Viewer2 = ImageViewer(f'/mnt/soma_cifs/Iyer/RequestingHelpOCT2022/02112022a_43/Camera1/img{str(self.image_number).zfill(5)}.png',
-                                   [1050, 50], 'Camera2')
-        self.Viewer3 = ImageViewer(f'/mnt/soma_cifs/Iyer/RequestingHelpOCT2022/02112022a_43/Camera2/img{str(self.image_number).zfill(5)}.png',
-                                   [50, 550],  'Camera3')
-
+                                   [250, 50], 'Camera1', self.image_number, 1.8)
         self.hover_start = []
         self.hover_end = []
 
         self.current_viewer = None
         self.curr_view_txt = None
 
-    def initialize_vidcap(self):
-        self.cap1 = cv2.VideoCapture(self.Video1)
-        self.cap2 = cv2.VideoCapture(self.Video2)
-        self.cap3 = cv2.VideoCapture(self.Video3)
-
-    def close_vidcap(self):
-        self.cap1.release()
-        self.cap2.release()
-        self.cap3.release()
-
     def which_viewer(self):
         if self.Viewer1.position.contains(int(self.pen_x), int(self.pen_y)):
             self.current_viewer = self.Viewer1
             self.curr_view_txt = 'Image 01'
-        elif self.Viewer2.position.contains(int(self.pen_x), int(self.pen_y)):
-            self.current_viewer = self.Viewer2
-            self.curr_view_txt = 'Image 02'
-        elif self.Viewer3.position.contains(int(self.pen_x), int(self.pen_y)):
-            self.current_viewer = self.Viewer3
-            self.curr_view_txt = 'Image 03'
         else:
             self.current_viewer = None
             self.curr_view_txt = 'NoViewer Active'
@@ -109,8 +80,8 @@ class TabletSampleWindow(QWidget):
         if self.drawing:
             X, Y = self.current_viewer.transform_pts(self.pen_x, self.pen_y)
             self.current_viewer.transformed_pts.append(QtCore.QPointF(X, Y))
-            self.current_viewer.pts.append(QtCore.QPointF(self.pen_x,
-                                                          self.pen_y))
+            # self.current_viewer.pts.append(QtCore.QPointF(self.pen_x,
+            #                                               self.pen_y))
         elif self.hover:
             self.hover_end = QtCore.QPoint(int(self.pen_x), int(self.pen_y))
 
@@ -125,8 +96,8 @@ class TabletSampleWindow(QWidget):
         if event.key() == QtCore.Qt.Key_Q:
             self.closeEvent()
 
-        if event.key() == QtCore.Qt.Key_Q:
-            self.closeEvent()
+        if event.key() == QtCore.Qt.Key_D:
+            self.delete_pts()
 
         elif event.key() == QtCore.Qt.Key_Plus:
             self.current_viewer.keyboard_zoom(self.pen_x, self.pen_y,
@@ -139,16 +110,33 @@ class TabletSampleWindow(QWidget):
             self.update()
 
         elif event.key() == QtCore.Qt.Key_N:
-            self.image_number = 3200
-            self.Viewer1.update_image(f'/mnt/soma_cifs/Iyer/Filming/AnnotationTemp/Camera0/frame{self.image_number}.jpg', self.image_number)
-            self.Viewer2.update_image(f'/mnt/soma_cifs/Iyer/Filming/AnnotationTemp/Camera1/frame{self.image_number}.jpg', self.image_number)
-            self.Viewer3.update_image(f'/mnt/soma_cifs/Iyer/Filming/AnnotationTemp/Camera2/frame{self.image_number}.jpg', self.image_number)
-            self.Viewer1.pts = []
-            self.Viewer2.pts = []
-            self.Viewer3.pts = []
+            self.image_number += 1
+            self.Viewer1.count = 0
+            print(f'Loaded /mnt/soma_cifs/Iyer/RequestingHelpOCT2022/02112022a_43/Camera0/img{str(self.image_number).zfill(5)}.png')
+            self.Viewer1.update_image(f'/mnt/soma_cifs/Iyer/RequestingHelpOCT2022/02112022a_43/Camera0/img{str(self.image_number).zfill(5)}.png', self.image_number)
+            self.update()
+
+        elif event.key() == QtCore.Qt.Key_P:
+            self.image_number -= 1
+            self.Viewer1.count = 0
+            print(f'Loaded /mnt/soma_cifs/Iyer/RequestingHelpOCT2022/02112022a_43/Camera0/img{str(self.image_number).zfill(5)}.png')
+            self.Viewer1.update_image(f'/mnt/soma_cifs/Iyer/RequestingHelpOCT2022/02112022a_43/Camera0/img{str(self.image_number).zfill(5)}.png', self.image_number)
+            if os.path.exists(f'Camera1_Img{str(self.image_number).zfill(5)}_pts00000.npy'):
+                self.Viewer1.load_pts(f'Camera1_Img{str(self.image_number).zfill(5)}_pts00000.npy')
             self.update()
 
         event.accept()
+
+    def delete_pts(self):
+        npys = [i for i in os.listdir() if 'npy' in i and str(self.image_number) in i]
+        for i in npys:
+            os.remove(i)
+            self.Viewer1.filenames.remove(i)
+            print(f'Deleted {i}')
+        self.Viewer1.transformed_pts = []
+        self.Viewer1.count = 0;
+        self.update()
+        print(self.Viewer1.filenames)
 
     def buttonpress(self):
         if self.drawing:
@@ -164,8 +152,6 @@ class TabletSampleWindow(QWidget):
         painter.drawText(self.rect(), QtCore.Qt.AlignTop |
                          QtCore.Qt.AlignLeft, text)
         self.Viewer1.draw(painter)
-        self.Viewer2.draw(painter)
-        self.Viewer3.draw(painter)
 
         pen = QPen()
         pen.setWidth(2)
@@ -174,18 +160,19 @@ class TabletSampleWindow(QWidget):
 
         if self.hover:
             painter.drawRect(QtCore.QRect(self.hover_start, self.hover_end))
-        for point in self.Viewer1.pts:
-            painter.drawPoint(point)
-        for point in self.Viewer2.pts:
-            painter.drawPoint(point)
-        for point in self.Viewer3.pts:
-            painter.drawPoint(point)
+
+        if os.path.exists(f'Camera1_Img{str(self.image_number).zfill(5)}_pts00000.npy'):
+            pts = [QtCore.QPointF(*p) for p in np.load(f'Camera1_Img{str(self.image_number).zfill(5)}_pts00000.npy')]
+            for point in pts:
+                pt = self.Viewer1.inverse_pts(point.x(), point.y())
+                painter.drawPoint(pt)
+        if self.Viewer1.transformed_pts:
+            for point in self.Viewer1.transformed_pts:
+                pt = self.Viewer1.inverse_pts(point.x(), point.y())
+                painter.drawPoint(pt)
 
     def closeEvent(self, *args, **kwargs):
-        self.close_vidcap()
         self.Viewer1.save_npys()
-        self.Viewer2.save_npys()
-        self.Viewer3.save_npys()
         self.deleteLater()
 
 
