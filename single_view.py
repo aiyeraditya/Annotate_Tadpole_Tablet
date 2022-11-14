@@ -13,11 +13,27 @@ from scipy.interpolate import interp1d
 import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image
-import cv2, os
+import cv2, os, shutil
 
 from ImageViewer import ImageViewer    #This is a self-defined Class file. See ImageViewer.py
 
 import utils
+
+folder_list_Cam2 = ['1_2200-3340',
+ '37_9307-11999',
+ '41_5754-9727',
+ '76_9605-11135',
+ '40_4100-5280',
+ '33_5226-7495',
+ '45_7825-10101',
+ '48_6133-7909',
+ '69_6958-10675',
+ '20_6011-7919',
+ '20_9661-11999',
+ '22_10635-11787',
+ '43_3102-6419',
+ '21_0-2061',
+ '1_0-1477']
 
 
 class TabletSampleWindow(QWidget):
@@ -35,9 +51,12 @@ class TabletSampleWindow(QWidget):
         self.resize(width, height)
         self.setWindowTitle("Sample Tablet Event Handling")
 
-        self.image_number = 3200
-        self.Viewer1 = ImageViewer(f'/mnt/soma_cifs/Iyer/RequestingHelpOCT2022/02112022a_43/Camera0/img{str(self.image_number).zfill(5)}.png',
-                                   [250, 50], 'Camera1', self.image_number, 1.8)
+        self.folder_path = f'/home/iyer_la/Documents/TailAnnotated/tadpole_stage57_Cam2-Aditya-2022-11-04/labeled-data/{folder_list_Cam2[int(sys.argv[1])]}/'
+        self.images = [i for i in os.listdir(self.folder_path) if 'img' in i]
+        print(self.images)
+        self.image_number = 0
+        self.Viewer1 = ImageViewer(f'{self.folder_path}{self.images[self.image_number]}',
+                                   [250, 50], 'Camera1', self.images[self.image_number], 1.8)
         self.hover_start = []
         self.hover_end = []
 
@@ -112,31 +131,40 @@ class TabletSampleWindow(QWidget):
         elif event.key() == QtCore.Qt.Key_N:
             self.image_number += 1
             self.Viewer1.count = 0
-            print(f'Loaded /mnt/soma_cifs/Iyer/RequestingHelpOCT2022/02112022a_43/Camera0/img{str(self.image_number).zfill(5)}.png')
-            self.Viewer1.update_image(f'/mnt/soma_cifs/Iyer/RequestingHelpOCT2022/02112022a_43/Camera0/img{str(self.image_number).zfill(5)}.png', self.image_number)
-            self.update()
+            try:
+                print(f'Loaded {self.folder_path}{self.images[self.image_number]}')
+                self.Viewer1.update_image(f'{self.folder_path}{self.images[self.image_number]}', self.images[self.image_number])
+                if os.path.exists(f'Camera1{self.images[self.image_number][:-4]}_pts00000.npy'):
+                    self.Viewer1.load_pts(f'Camera1{self.images[self.image_number][:-4]}_pts00000.npy')
+                self.update()
+            except IndexError:
+                print('Reached end of Image Array')
+                self.image_number = 0
+                self.Viewer1.count = 0
 
         elif event.key() == QtCore.Qt.Key_P:
             self.image_number -= 1
             self.Viewer1.count = 0
-            print(f'Loaded /mnt/soma_cifs/Iyer/RequestingHelpOCT2022/02112022a_43/Camera0/img{str(self.image_number).zfill(5)}.png')
-            self.Viewer1.update_image(f'/mnt/soma_cifs/Iyer/RequestingHelpOCT2022/02112022a_43/Camera0/img{str(self.image_number).zfill(5)}.png', self.image_number)
-            if os.path.exists(f'Camera1_Img{str(self.image_number).zfill(5)}_pts00000.npy'):
-                self.Viewer1.load_pts(f'Camera1_Img{str(self.image_number).zfill(5)}_pts00000.npy')
+            print(f'Loaded {self.folder_path}{self.images[self.image_number]}')
+            self.Viewer1.update_image(f'{self.folder_path}{self.images[self.image_number]}', self.images[self.image_number])
+            if os.path.exists(f'Camera1{self.images[self.image_number][:-4]}_pts00000.npy'):
+                self.Viewer1.load_pts(f'Camera1{self.images[self.image_number][:-4]}_pts00000.npy')
             self.update()
 
         event.accept()
 
     def delete_pts(self):
-        npys = [i for i in os.listdir() if 'npy' in i and str(self.image_number) in i]
+        npys = [i for i in os.listdir() if 'npy' in i and str(self.images[self.image_number][:-4]) in i]
         for i in npys:
-            os.remove(i)
-            self.Viewer1.filenames.remove(i)
-            print(f'Deleted {i}')
+            try:
+                os.remove(i)
+                self.Viewer1.filenames.remove(i)
+                print(f'Deleted {i}')
+            except Exception as e:
+                print(f'{e} No label to delete')
         self.Viewer1.transformed_pts = []
         self.Viewer1.count = 0;
         self.update()
-        print(self.Viewer1.filenames)
 
     def buttonpress(self):
         if self.drawing:
@@ -161,8 +189,8 @@ class TabletSampleWindow(QWidget):
         if self.hover:
             painter.drawRect(QtCore.QRect(self.hover_start, self.hover_end))
 
-        if os.path.exists(f'Camera1_Img{str(self.image_number).zfill(5)}_pts00000.npy'):
-            pts = [QtCore.QPointF(*p) for p in np.load(f'Camera1_Img{str(self.image_number).zfill(5)}_pts00000.npy')]
+        if os.path.exists(f'Camera1{self.images[self.image_number][:-4]}_pts00000.npy'):
+            pts = [QtCore.QPointF(*p) for p in np.load(f'Camera1{self.images[self.image_number][:-4]}_pts00000.npy')]
             for point in pts:
                 pt = self.Viewer1.inverse_pts(point.x(), point.y())
                 painter.drawPoint(pt)
@@ -171,8 +199,14 @@ class TabletSampleWindow(QWidget):
                 pt = self.Viewer1.inverse_pts(point.x(), point.y())
                 painter.drawPoint(pt)
 
+    def move_images(self):
+        npys = [i for i in os.listdir() if 'Camera1img' in i];
+        for i in npys:
+            shutil.move(i, self.folder_path + i)
+
     def closeEvent(self, *args, **kwargs):
         self.Viewer1.save_npys()
+        self.move_images()
         self.deleteLater()
 
 

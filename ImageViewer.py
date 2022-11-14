@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 from PIL import Image
 
 class ImageViewer():
-    def __init__(self, image_name, position, cam_ID, image_number = 0, scale_factor = 3.3):
+    def __init__(self, image_name, position, cam_ID, image_number = '0', scale_factor = 3.3):
         self.pixmap = QPixmap(image_name)
         self.img_ = np.asarray(Image.open(image_name))
         self.img_height, self.img_width, _ = self.img_.shape
@@ -141,10 +141,11 @@ class ImageViewer():
 
     def save_pts(self):
         ptname_ = str(self.count).zfill(5)
-        imgname_ = str(self.image_number).zfill(5)
-        np.save(f'{self.camera_name}_Img{imgname_}_pts{ptname_}.npy',
+        #imgname_ = str(self.image_number).zfill(5)
+        imgname_ = self.image_number[:-4]
+        np.save(f'{self.camera_name}{imgname_}_pts{ptname_}.npy',
                 self.equidistant_pts)
-        self.filenames.append(f'{self.camera_name}_Img{imgname_}_pts{ptname_}.npy')
+        self.filenames.append(f'{self.camera_name}{imgname_}_pts{ptname_}.npy')
         self.count += 1
 
     def visualize_fit(self):
